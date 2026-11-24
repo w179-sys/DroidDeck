@@ -1,7 +1,6 @@
 package com.droiddeck.launcher.session
 
 import android.content.Context
-import android.os.Environment
 import android.util.Log
 import java.io.File
 import java.text.SimpleDateFormat
@@ -36,10 +35,7 @@ object BootMovieReport {
             Log.w(TAG, "could not build the report", it)
             return null
         }
-        val folders = listOfNotNull(
-            File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "DroidDeck"),
-            context.getExternalFilesDir(null),
-        )
+        val folders = listOfNotNull(context.getExternalFilesDir(null))
         for (folder in folders) {
             val file = File(folder, "boot-movie-report.txt")
             val saved = runCatching { folder.mkdirs(); file.writeText(text); true }.getOrDefault(false)

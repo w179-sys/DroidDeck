@@ -194,7 +194,7 @@ class DroidDeckHudHost(context: Context) {
     }
 
     fun exportDiagnostics(): File? = runCatching {
-        val dir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "DroidDeck")
+        val dir = context.getExternalFilesDir(null) ?: context.filesDir
         dir.mkdirs()
         val stamp = java.text.SimpleDateFormat("yyyyMMdd-HHmmss", java.util.Locale.US).format(java.util.Date())
         val file = File(dir, "HUD-diagnostics-$stamp.txt")

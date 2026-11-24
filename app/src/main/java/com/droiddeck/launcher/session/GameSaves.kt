@@ -1,7 +1,6 @@
 package com.droiddeck.launcher.session
 
 import android.content.Context
-import android.os.Environment
 import com.droiddeck.launcher.R
 import com.droiddeck.launcher.frontend.Library
 import java.io.BufferedInputStream
@@ -33,8 +32,8 @@ object GameSaves {
 
     private const val USER = "steamuser"
 
-    fun savesDir(): File = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "DroidDeck/Saves")
-    private fun backupsDir(): File = File(savesDir(), "backups")
+    fun savesDir(context: Context): File = File(context.getExternalFilesDir(null) ?: context.filesDir, "Saves")
+    private fun backupsDir(context: Context): File = File(savesDir(context), "backups")
 
     fun game(context: Context, game: Library.SteamGame): Game {
         val root = if (ubisoft(game)) ubisoftRoot(context, game) else null
@@ -173,8 +172,8 @@ object GameSaves {
             }
             if (!eligible) error(context.getString(R.string.saves_not_save_zip, zip.name))
         }
-        backupsDir().mkdirs()
-        val backup = File(backupsDir(), "${safe(game.game.name)}_${stamp()}_${System.currentTimeMillis()}.zip")
+        backupsDir(context).mkdirs()
+        val backup = File(backupsDir(context), "${safe(game.game.name)}_${stamp()}_${System.currentTimeMillis()}.zip")
         val backedUp = if (scoped != null && File(profile(prefix), scoped).walkTopDown().none { it.isFile }) 0
             else zipProfile(profile(prefix), scoped?.let(::listOf), Layout.GAMEHUB, backup)
         if (backedUp == 0) backup.delete()

@@ -196,6 +196,8 @@ data class GpuInfo(
             "mt6781" to "Mali-G52", "mt6769" to "Mali-G52", "mt8192" to "Mali-G57", "mt8195" to "Mali-G57",
             "gs101" to "Mali-G78", "gs201" to "Mali-G710", "zuma" to "Mali-G715", "zumapro" to "Mali-G715",
             "s5e8835" to "Mali-G68", "s5e8825" to "Mali-G68",
+            // Xiaomi XRING O1 (Xiaomi 15S Pro, device dijun): ro.soc.model O1, ro.board.platform O1_asic.
+            "o1" to "Mali-G925", "o1_asic" to "Mali-G925",
         )
 
         /** The Mali [ids] name a chip of, "Mali-G720 (by chip mt6989)", or null for an unknown chip. */
