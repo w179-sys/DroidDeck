@@ -1068,7 +1068,10 @@ class SessionService : Service() {
         if (SessionPrefs.noGlError(this)) guest.add("MESA_NO_ERROR=1")
         guest.add("MESA_DISK_CACHE_DATABASE=1")
         guest.addAll(GpuStatsComponent.guestEnv(LinuxRuntime.rootDir(this)))
-        guest.add("GLIBC_TUNABLES=glibc.pthread.rseq=0:glibc.malloc.top_pad=16777216")
+        // 16 MiB of top pad is 128x glibc's default and rides in every guest process's heap; two
+        // arenas keep a ten-core phone from mapping one per core.
+        guest.add("GLIBC_TUNABLES=glibc.pthread.rseq=0:glibc.malloc.top_pad=1048576")
+        guest.add("MALLOC_ARENA_MAX=2")
         if (SessionState.mode == MODE_STEAM) guest.add("DD_MANGOAPP=" + (if (SessionPrefs.mangoapp(this)) "1" else "0"))
         SessionState.steamClientArch = if (steamHere) SessionPrefs.steamClientArch(this) else null
         SessionState.steamClientArch?.let { arch ->
