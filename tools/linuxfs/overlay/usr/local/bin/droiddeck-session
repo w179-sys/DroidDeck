@@ -1494,10 +1494,17 @@ case $mode in
       # a game loading beside it, Android's low-memory killer took the whole session down.
       if [ -z "${DD_VKBRIDGE_CEF_GPU:-}" ]; then
         _dd_mem_kb=$(awk '/^MemTotal:/ {print $2}' /proc/meminfo 2>/dev/null)
-        if [ "${_dd_mem_kb:-0}" -gt 0 ] && [ "$_dd_mem_kb" -lt 4194304 ]; then
+        _dd_free_kb=$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo 2>/dev/null)
+        _dd_cef_low=0
+        if [ "${_dd_mem_kb:-0}" -gt 0 ] && [ "${_dd_mem_kb}" -lt 4194304 ]; then _dd_cef_low=1; fi
+        # A large phone can still be down to a couple of gigabytes once the system and its own apps
+        # are up, and the UI's GPU path costs about 400 MB either way: the free memory decides.
+        if [ "${_dd_free_kb:-0}" -gt 0 ] && [ "${_dd_free_kb}" -lt 3145728 ]; then _dd_cef_low=1; fi
+        if [ "$_dd_cef_low" = 1 ]; then
           DD_VKBRIDGE_CEF_GPU=0
-          echo "== steam: $((_dd_mem_kb / 1024)) MB of RAM: the browser UI draws in software to leave games the memory"
+          echo "== steam: $((_dd_mem_kb / 1024)) MB of RAM, $(( ${_dd_free_kb:-0} / 1024 )) MB free: the browser UI draws in software to leave games the memory"
         fi
+        unset _dd_cef_low
       fi
       if [ "${DD_VKBRIDGE_CEF_GPU:-1}" = 0 ]; then
         _dd_cef=(-cef-disable-gpu -cef-disable-gpu-compositing)
