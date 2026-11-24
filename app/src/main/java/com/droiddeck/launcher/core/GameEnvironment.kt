@@ -30,6 +30,7 @@ object GameEnvironment {
 
     fun defaults(preset: String, forceSsbs: Boolean = false): Map<String, String?> = linkedMapOf<String, String?>(
         "MESA_SHADER_CACHE_DISABLE" to "false",
+        "MESA_SHADER_CACHE_MAX_SIZE" to "512M",
         "DROIDDECK_ANTICHEAT_OFFLINE" to "1",
         "DOTNET_GCRegionRange" to "800000000",
         "DOTNET_EnableWriteXorExecute" to "0",
