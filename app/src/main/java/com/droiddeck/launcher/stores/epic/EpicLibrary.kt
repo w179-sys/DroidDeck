@@ -177,14 +177,26 @@ object EpicLibrary {
 
             val before = cache.associateBy { it.appName }
             val total = records.length()
-            val games = ArrayList<EpicGame>(total)
-            for (i in 0 until total) {
-                val record = records.optJSONObject(i) ?: continue
-                if (i % 5 == 0) status(app.getString(R.string.stores_sync_details, i, total))
-                val details = EpicApiClient.catalogDetails(token, record.optString("namespace"), record.optString("catalogItemId"))
-                games += gameFrom(record, details, before[record.optString("appName")])
+            // One catalog request per game, over the network: run them side by side and keep the
+            // order the store returned so the library does not reshuffle between syncs.
+            val games = arrayOfNulls<EpicGame>(total)
+            val pool = java.util.concurrent.Executors.newFixedThreadPool(8)
+            try {
+                val futures = (0 until total).map { i ->
+                    pool.submit {
+                        val record = records.optJSONObject(i) ?: return@submit
+                        val details = EpicApiClient.catalogDetails(token, record.optString("namespace"), record.optString("catalogItemId"))
+                        games[i] = gameFrom(record, details, before[record.optString("appName")])
+                    }
+                }
+                for ((i, future) in futures.withIndex()) {
+                    future.get()
+                    if (i % 10 == 0) status(app.getString(R.string.stores_sync_details, i + 1, total))
+                }
+            } finally {
+                pool.shutdown()
             }
-            val shown = visible(games)
+            val shown = visible(games.filterNotNull())
             prefs.edit().putString(KEY_CACHE, toCacheJson(shown)).putLong(KEY_SYNCED_AT, System.currentTimeMillis()).apply()
             return SyncResult.Ok(shown)
         } catch (e: Exception) {
