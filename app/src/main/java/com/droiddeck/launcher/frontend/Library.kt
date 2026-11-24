@@ -91,6 +91,30 @@ object Library {
     private val PRIVATE_APPS = Regex("\"PrivateApps_\\d+\"\\s*\"\\[([^\\]]*)\\]\"")
     private val INSTALL_DIR = Regex("^\\s*\"installdir\"\\s*\"([^\"]*)\"", RegexOption.MULTILINE)
 
+    /**
+     * A refresh scans every manifest three times (games, soundtracks, launchable), and each game
+     * asked for its prefix roots canonicalised the whole library list. Both are keyed by what
+     * changes on disk, so the repeat passes cost a map lookup instead of a read and a stat.
+     */
+    private class CachedManifest(val size: Long, val modified: Long, val text: String)
+    private val manifestTexts = java.util.concurrent.ConcurrentHashMap<String, CachedManifest>()
+    private val canonicalPaths = java.util.concurrent.ConcurrentHashMap<String, String>()
+
+    private fun manifestText(manifest: File, strictRead: Boolean): String? {
+        if (manifestTexts.size > 4096) manifestTexts.clear()
+        val stamp = manifestTexts[manifest.absolutePath]
+        val size = manifest.length()
+        val modified = manifest.lastModified()
+        if (stamp != null && stamp.size == size && stamp.modified == modified) return stamp.text
+        val text = try { manifest.readText() } catch (e: Exception) { if (strictRead) throw e; return null }
+        manifestTexts[manifest.absolutePath] = CachedManifest(size, modified, text)
+        return text
+    }
+
+    private fun canonical(file: File): String = canonicalPaths.computeIfAbsent(file.absolutePath) {
+        runCatching { file.canonicalPath }.getOrDefault(file.absolutePath)
+    }
+
     internal fun steamLibraries(context: Context, arch: String = SessionPrefs.activeSteamClientArch(context)): List<Pair<File, String>> {
         val root = SessionPrefs.steamRoot(context, arch)
         val card = GameStorage.effective(context)
@@ -118,11 +142,11 @@ object Library {
 
     private fun prefixRoots(context: Context, libraries: List<File>, preferredLibrary: File? = null): List<File> {
         val secondary = libraries.drop(1).mapNotNull { runCatching { it.canonicalPath }.getOrNull() }.toSet()
-        fun prefixRoot(root: File): File = if (runCatching { root.canonicalPath }.getOrNull() in secondary)
+        fun prefixRoot(root: File): File = if (canonical(root) in secondary)
             SecondaryLibrary.privateRoot(context.filesDir, root).takeIf { File(it, "steamapps/compatdata").isDirectory } ?: root
             else root
         return (listOfNotNull(preferredLibrary) + libraries).map(::prefixRoot)
-            .distinctBy { runCatching { it.canonicalPath }.getOrDefault(it.absolutePath) }
+            .distinctBy { canonical(it) }
     }
 
     fun soundtracks(context: Context, arch: String = SessionPrefs.activeSteamClientArch(context)): List<SteamGame> =
@@ -147,7 +171,7 @@ object Library {
                     if (appId in NOT_GAMES || out.containsKey(appId) ||
                         (onlyAppIds != null && appId !in onlyAppIds)
                     ) return@forEach
-                    val text = try { manifest.readText() } catch (e: Exception) { if (strictRead) throw e; return@forEach }
+                    val text = manifestText(manifest, strictRead) ?: return@forEach
                     val name = NAME.find(text)?.groupValues?.get(1)?.trim().orEmpty()
                     val flags = STATE.find(text)?.groupValues?.get(1)?.toIntOrNull() ?: 0
                     if (name.isEmpty() || flags and 4 == 0) return@forEach
